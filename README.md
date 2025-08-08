@@ -4,5 +4,4 @@
 # Умная голова v1.0.0
 ## Схема соиденения компонентов
 <img width="1677" height="663" alt="Untitled Sketch_МП" src="https://github.com/user-attachments/assets/a1731e22-c9c2-4350-882c-bae5c23f1c5e" />
-## Код и сэмплы для пк
-Код и сэмплы для пк находяться в папке tracing_object.
+
