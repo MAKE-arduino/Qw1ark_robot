@@ -1,5 +1,6 @@
-#include "GyverStepper2.h"
+#define ANGLE -420 // макс колличество шагов (обязательно с минусом в начале)
 
+#include "GyverStepper2.h"
 // Пины: EN=-1 (отключён), DIR=2, STEP=4, MS1=3, MS2=5
 GStepper2<STEPPER4WIRE> stepper(-1, 2, 4, 3, 5);
 
@@ -10,7 +11,6 @@ int lastPrinted = 0;
 float filteredX = 0;
 
 void setup() {
-  pinMode(13, OUTPUT);
   Serial.begin(9600);
   while (!Serial);
 
@@ -34,11 +34,11 @@ void loop() {
 
         // Устанавливаем ЦЕЛЕВОЕ ПОЛОЖЕНИЕ (можно масштабировать)
         // Например: 640 пикселей → 180 градусов
-        float targetAngle = map(filteredX, 0, 640, -1000, 1000);
+        float targetAngle = map(filteredX, 0, 640, ANGLE, abs(ANGLE));
         // Ограничим, чтобы не выходить за пределы
-        targetAngle = constrain(targetAngle, -1000, 1000);
+        targetAngle = constrain(targetAngle, ANGLE, abs(ANGLE));
 
-        stepper.setTarget(targetAngle);
+        stepper.setTarget(expRunningAverageAdaptive(targetAngle));
 
         // Отправляем ОБРАТНО отфильтрованное значение (или текущее положение)
         // Для отладки: можно отправить filteredX или (int)stepper.getCurrentDeg()
@@ -47,15 +47,12 @@ void loop() {
           Serial.println(currentSent);
           lastPrinted = currentSent;
         }
-
         receivedData = "";
       }
     } else {
       receivedData += c;
     }
   }
-
-  //delay(1); // небольшая пауза, чтобы не перегружать
 }
 
 // === Фильтр: адаптивное экспоненциальное сглаживание ===
