@@ -1,16 +1,36 @@
-#define ANGLE -420 // макс колличество шагов (обязательно с минусом в начале)
+template <typename T, uint8_t N>
+class AverageWindow {
+   public:
+    float filter(T val) {
+        _sum += val;
+        if (++_i >= N) _i = 0;
+        _sum -= _buffer[_i];
+        _buffer[_i] = val;
+        return (float)_sum / N;
+    }
 
+   private:
+    T _buffer[N] = {};
+    T _sum = 0;
+    uint8_t _i = 0;
+};
+AverageWindow<int, 10> aver;
+
+#define ANGLE -600 // отклонение в сторону в шагах(обязательно с минусом в начале)
+// либы
 #include "GyverStepper2.h"
 // Пины: EN=-1 (отключён), DIR=2, STEP=4, MS1=3, MS2=5
 GStepper2<STEPPER4WIRE> stepper(-1, 2, 4, 3, 5);
 
+// переменные
 String receivedData = "";
 int lastPrinted = 0;
-
 // Фильтр: будем фильтровать само значение X (положение)
 float filteredX = 0;
 
+// основной код
 void setup() {
+  pinMode(13, OUTPUT);
   Serial.begin(9600);
   while (!Serial);
 
@@ -31,15 +51,12 @@ void loop() {
 
         // === ФИЛЬТРУЕМ САМО ЗНАЧЕНИЕ X ===
         filteredX = expRunningAverageAdaptive(rawX);
-
         // Устанавливаем ЦЕЛЕВОЕ ПОЛОЖЕНИЕ (можно масштабировать)
         // Например: 640 пикселей → 180 градусов
         float targetAngle = map(filteredX, 0, 640, ANGLE, abs(ANGLE));
         // Ограничим, чтобы не выходить за пределы
         targetAngle = constrain(targetAngle, ANGLE, abs(ANGLE));
-
-        stepper.setTarget(expRunningAverageAdaptive(targetAngle));
-
+        stepper.setTarget(expRunningAverageAdaptive(aver.filter(targetAngle)));
         // Отправляем ОБРАТНО отфильтрованное значение (или текущее положение)
         // Для отладки: можно отправить filteredX или (int)stepper.getCurrentDeg()
         int currentSent = (int)targetAngle;
@@ -49,9 +66,7 @@ void loop() {
         }
         receivedData = "";
       }
-    } else {
-      receivedData += c;
-    }
+    } else receivedData += c;
   }
 }
 
