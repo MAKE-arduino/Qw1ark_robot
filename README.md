@@ -21,15 +21,15 @@ pip install numpy
 ## Описание работы
 **Перед запуском кода вот тут, вы указываете на какой предмет вы хотите наводиться:**
 
-<img width="317" height="79" alt="Снимок экрана 2025-08-18 112743" src="https://github.com/user-attachments/assets/03334865-8806-47a8-8bdf-0af1b7b39c7a" />
+<img width="657" height="84" alt="Снимок экрана 2025-08-27 132529" src="https://github.com/user-attachments/assets/24be9b46-4633-4fce-9118-c123d68835ca" />
 
 Из списка ↓
 
-<img width="951" height="501" alt="Снимок экрана 2025-08-18 113148" src="https://github.com/user-attachments/assets/268b9e7b-099c-4caf-8cd9-39376d5aec6d" />
+<img width="988" height="522" alt="Снимок экрана 2025-08-27 132536" src="https://github.com/user-attachments/assets/a3bae0fb-31e9-40a6-b814-4668847bd42c" />
 
 ### Дальше загружаете прошивку в ардуино!
 **Запускайте код на пк указав нужный порт куда подключена ардуино вот тут ↓**
 
-<img width="634" height="37" alt="Снимок экрана 2025-08-18 113712" src="https://github.com/user-attachments/assets/69916867-d5c5-48ae-a89c-dab1b2ae6771" />
+<img width="787" height="30" alt="Снимок экрана 2025-08-27 132547" src="https://github.com/user-attachments/assets/2360f29a-6b66-483a-9072-a031f85d45e8" />
 
 Всё, **камера наводиться на выбранный объект по оси X!**
