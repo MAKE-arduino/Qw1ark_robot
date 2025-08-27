@@ -3,15 +3,25 @@ import cv2
 import serial
 import time
 
-ser = serial.Serial('COM11', baudrate=9600, timeout=1)
-time.sleep(2)  # Дать Arduino перезагрузиться
+# Подключение к Arduino
+try:
+    ser = serial.Serial('COM9', baudrate=9600, timeout=1)
+    time.sleep(2)  # Дать Arduino время на перезагрузку
+    print("✅ Подключено к Arduino")
+except Exception as e:
+    print(f"❌ Ошибка подключения к Arduino: {e}")
+    exit()
 
-# Загружаем модель YOLOv5
-model = YOLO('yolov5s.pt')  # или другая модель
+# Загрузка модели YOLOv8
+model = YOLO('yolov8s.pt')  # Используем yolo v8 small
 
+# Включение камеры
 cap = cv2.VideoCapture(0)
+if not cap.isOpened():
+    print("❌ Не удалось открыть камеру")
+    exit()
 
-# Словарь классов COCO (для YOLOv5)
+# Словарь классов COCO для YOLOv8
 class_names = {
     0: 'person', 1: 'bicycle', 2: 'car', 3: 'motorcycle', 4: 'airplane',
     5: 'bus', 6: 'train', 7: 'truck', 8: 'boat', 9: 'traffic light',
@@ -30,25 +40,43 @@ class_names = {
     70: 'toaster', 71: 'sink', 72: 'refrigerator', 73: 'book', 74: 'clock',
     75: 'vase', 76: 'scissors', 77: 'teddy bear', 78: 'hair drier', 79: 'toothbrush'
 }
-target_class = 'person' # индекс объекта обнаружения из списка выше
 
+target_class = 'cell phone'  # объект, который мы ищем
+
+target_class_id = None
+for key, value in class_names.items():
+    if value == target_class:
+        target_class_id = key
+        break
+
+if target_class_id is None:
+    print(f"❌ Класс '{target_class}' не найден в списке")
+    exit()
+
+# Переменные для хранения последнего найденного объекта
+last_x = None
 
 while True:
     ret, frame = cap.read()
     if not ret:
+        print("❌ Не удалось получить кадр")
         break
 
+    # Запуск модели
     results = model(frame)
     result = results[0]
 
+    # Получение аннотированного кадра
     annotated_frame = result.plot(
-    conf=False,      # показывать уверенность
-    boxes=True,     # показывать bounding boxes
-    labels=True,    # показывать метки классов
-    probs=True,      # показывать вероятности классов
-)
-    # Обрабатываем каждый объект
-    for i, box in enumerate(result.boxes):
+        conf=False,  # не показывать уверенность
+        boxes=True,  # показывать bounding boxes
+        labels=True,  # показывать метки классов
+        probs=False,  # не показывать вероятности классов
+    )
+
+    # Обработка каждого объекта
+    found_target = False
+    for box in result.boxes:
         x1, y1, x2, y2 = box.xyxy[0].tolist()
         class_id = int(box.cls.item())
         confidence = box.conf.item()
@@ -56,15 +84,36 @@ while True:
         # Получаем название класса
         class_name = class_names.get(class_id, f"class_{class_id}")
 
-    if class_name == target_class:
-        x1, y1, x2, y2 = box.xyxy[0].tolist()
-        x = (x1 + x2) / 2
-        y = (y1 + y2) / 2
-        print(x // 1)
-    cv2.imshow('YOLO Detection', annotated_frame)
-    ser.write(f"{x // 1}\n".encode('utf-8'))
+        # Проверяем, является ли объект целевым
+        if class_name == target_class and confidence > 0.5:  # порог уверенности
+            found_target = True
+            x = (x1 + x2) / 2
+            y = (y1 + y2) / 2
+            last_x = x
+
+            # Рисуем центр объекта
+            cv2.circle(annotated_frame, (int(x), int(y)), 5, (0, 255, 0), -1)
+
+            # Выводим координаты
+            print(f"Найден {target_class} в координатах X: {int(x)}")
+
+    # Отправляем координату в Arduino, если объект найден
+    if last_x is not None:
+        try:
+            ser.write(f"{int(last_x)}\n".encode('utf-8'))
+            print(f"Отправлено: {int(last_x)}")
+        except Exception as e:
+            print(f"Ошибка отправки данных: {e}")
+
+    # Отображение кадра
+    cv2.imshow('YOLOv8 Detection', annotated_frame)
+
+    # Выход по клавише 'q'
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
+# Очистка
 cap.release()
 cv2.destroyAllWindows()
+ser.close()
+print("✅ Программа завершена")
