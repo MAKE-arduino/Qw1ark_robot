@@ -5,7 +5,7 @@ import time
 
 # Подключение к Arduino
 try:
-    ser = serial.Serial('COM9', baudrate=9600, timeout=1)
+    ser = serial.Serial('COM18', baudrate=9600, timeout=1)
     time.sleep(2)  # Дать Arduino время на перезагрузку
     print("✅ Подключено к Arduino")
 except Exception as e:
@@ -16,7 +16,7 @@ except Exception as e:
 model = YOLO('yolov8s.pt')  # Используем yolo v8 small
 
 # Включение камеры
-cap = cv2.VideoCapture(0)
+cap = cv2.VideoCapture(1)
 if not cap.isOpened():
     print("❌ Не удалось открыть камеру")
     exit()
@@ -41,7 +41,7 @@ class_names = {
     75: 'vase', 76: 'scissors', 77: 'teddy bear', 78: 'hair drier', 79: 'toothbrush'
 }
 
-target_class = 'cell phone'  # объект, который мы ищем
+target_class = 'person'  # объект, который мы ищем
 
 target_class_id = None
 for key, value in class_names.items():
@@ -56,7 +56,10 @@ if target_class_id is None:
 # Переменные для хранения последнего найденного объекта
 last_x = None
 
+pre_last_x = None
+
 while True:
+    send_x=None
     ret, frame = cap.read()
     if not ret:
         print("❌ Не удалось получить кадр")
@@ -76,6 +79,7 @@ while True:
 
     # Обработка каждого объекта
     found_target = False
+    last_x = []
     for box in result.boxes:
         x1, y1, x2, y2 = box.xyxy[0].tolist()
         class_id = int(box.cls.item())
@@ -89,19 +93,37 @@ while True:
             found_target = True
             x = (x1 + x2) / 2
             y = (y1 + y2) / 2
-            last_x = x
+            last_x.append(x)
 
             # Рисуем центр объекта
             cv2.circle(annotated_frame, (int(x), int(y)), 5, (0, 255, 0), -1)
 
             # Выводим координаты
             print(f"Найден {target_class} в координатах X: {int(x)}")
+    if pre_last_x:
+        values = []
+        mined = 1000
+        for x in last_x:
+            v = abs(x-pre_last_x)
+            if v<mined:
+                mined = v
+                send_x = x
+        # m = min(values)
+        # for x in last_x:
+        #     if abs(x-pre_last_x) == m:
+        #         send_x = x
+        #         break
+    else:
+        if last_x:
+            send_x = last_x[0]
+
+
 
     # Отправляем координату в Arduino, если объект найден
-    if last_x is not None:
+    if send_x:
         try:
-            ser.write(f"{int(last_x)}\n".encode('utf-8'))
-            print(f"Отправлено: {int(last_x)}")
+            ser.write(f"{int(send_x)}\n".encode('utf-8'))
+            print(f"Отправлено: {int(send_x)}")
         except Exception as e:
             print(f"Ошибка отправки данных: {e}")
 
@@ -112,6 +134,7 @@ while True:
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
+    pre_last_x = send_x
 # Очистка
 cap.release()
 cv2.destroyAllWindows()
