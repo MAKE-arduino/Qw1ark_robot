@@ -55,11 +55,12 @@ if target_class_id is None:
 
 # Переменные для хранения последнего найденного объекта
 last_x = None
+last_y = None
 
 pre_last_x = None
-
+pre_last_y = None
 while True:
-    send_x=None
+    send_x, send_y=None
     ret, frame = cap.read()
     if not ret:
         print("❌ Не удалось получить кадр")
@@ -80,6 +81,7 @@ while True:
     # Обработка каждого объекта
     found_target = False
     last_x = []
+    last_y = []
     for box in result.boxes:
         x1, y1, x2, y2 = box.xyxy[0].tolist()
         class_id = int(box.cls.item())
@@ -94,7 +96,7 @@ while True:
             x = (x1 + x2) / 2
             y = (y1 + y2) / 2
             last_x.append(x)
-
+            last_y.append(y)
             # Рисуем центр объекта
             cv2.circle(annotated_frame, (int(x), int(y)), 5, (0, 255, 0), -1)
 
@@ -108,21 +110,29 @@ while True:
             if v<mined:
                 mined = v
                 send_x = x
-        # m = min(values)
-        # for x in last_x:
-        #     if abs(x-pre_last_x) == m:
-        #         send_x = x
-        #         break
+
     else:
         if last_x:
             send_x = last_x[0]
+#-----------------------------------
+    if pre_last_y:
+        values = []
+        mined = 1000
+        for y in last_y:
+            v = abs(y-pre_last_y)
+            if v<mined:
+                mined = v
+                send_x = x
 
+    else:
+        if last_y:
+            send_y = last_y[0]
 
 
     # Отправляем координату в Arduino, если объект найден
-    if send_x:
+    if send_x and send_y:
         try:
-            ser.write(f"{int(send_x)}\n".encode('utf-8'))
+            ser.write(f"{int(send_x)}:{int(send_y)}\n".encode('utf-8'))
             print(f"Отправлено: {int(send_x)}")
         except Exception as e:
             print(f"Ошибка отправки данных: {e}")
